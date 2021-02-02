@@ -30,7 +30,8 @@ model = FeedbackTransformer(
     ff_dropout = 0.1              # feedforward dropout
 ).cuda()
 
-x = torch.randint(0, 256, (2, 512)).cuda() # (1, 512, 20000)
+x = torch.randint(0, 256, (2, 512)).cuda()
+model(x)  # (1, 512, 20000)
 ```
 ## Citations
 
