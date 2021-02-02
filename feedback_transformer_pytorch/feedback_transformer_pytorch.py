@@ -185,7 +185,8 @@ class FeedbackTransformer(nn.Module):
         heads = 8,
         dim_head = 64,
         attn_dropout = 0.,
-        ff_dropout = 0.
+        ff_dropout = 0.,
+        keep_last_hidden = False
     ):
         super().__init__()
         self.seq_len = seq_len
@@ -213,8 +214,9 @@ class FeedbackTransformer(nn.Module):
 
         # memory parameters
 
-        self.layer_weight = nn.Parameter(torch.ones(depth))
+        self.layer_weight = nn.Parameter(torch.ones(depth + 1))
         self.shared_kv_proj = shared_kv_proj
+        self.keep_last_hidden = keep_last_hidden
 
         # final projection to logits
 
@@ -242,7 +244,7 @@ class FeedbackTransformer(nn.Module):
         layer_weight = rearrange(self.layer_weight, 'd -> d () () ()')
 
         for x in x.split(self.seq_len, dim = 1):
-            hiddens = []
+            hiddens = [x]
 
             # prepare memory for attention, if it exists
 
@@ -251,17 +253,21 @@ class FeedbackTransformer(nn.Module):
                 memory = (memory_keys, memory_values)
 
             for attn, ff in self.layers:
-                hiddens.append(x)
 
                 x = attn(x, memory = memory, pos_emb = self.pos_emb)
                 x = ff(x)
+
+                hiddens.append(x)
 
             outputs.append(x)
 
             # calculate new memory key / values and store to FIFO queue
 
-            hiddens = torch.stack(hiddens)
-            agg_hiddens = (hiddens * layer_weight).sum(dim = 0)
+            if self.keep_last_hidden: # secret option for only keeping last hidden layer, as in paper
+                agg_hiddens = hiddens[-1]
+            else:
+                hiddens = torch.stack(hiddens)
+                agg_hiddens = (hiddens * layer_weight).sum(dim = 0)
 
             # pre-calculate memory key / values and store to buffer
 
