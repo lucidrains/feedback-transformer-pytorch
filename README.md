@@ -6,6 +6,32 @@ Simple implementation of <a href="https://arxiv.org/abs/2002.09402">Feedback Tra
 
 I'll also take the liberty to add some various enhancements, including pre-normalization, GLU gated feedforwards, as well as simplified T5 relative positional embeddings.
 
+## Install
+
+```bash
+$ pip install feedback-transformer-pytorch
+```
+
+## Usage
+
+```python
+import torch
+from feedback_transformer_pytorch import FeedbackTransformer
+
+model = FeedbackTransformer(
+    num_tokens = 20000,           # number of tokens
+    dim = 512,                    # dimension
+    depth = 6,                    # depth
+    seq_len = 2,                  # the sequence length of each segment or window
+    mem_len = 256,                # length of the memory buffer
+    dim_head = 64,                # dimension of each head
+    heads = 8,                    # number of heads
+    attn_dropout = 0.1,           # attention dropout
+    ff_dropout = 0.1              # feedforward dropout
+).cuda()
+
+x = torch.randint(0, 256, (2, 512)).cuda() # (1, 512, 20000)
+```
 ## Citations
 
 ```bibtex
