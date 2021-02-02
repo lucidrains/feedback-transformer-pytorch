@@ -61,7 +61,7 @@ class RelativePositionBias(nn.Module):
         rp_bucket = self._relative_position_bucket(rel_pos, causal = self.causal, num_buckets = self.num_buckets, max_distance = self.max_distance)
         values = self.relative_attention_bias(rp_bucket)
         bias = rearrange(values, 'i j h -> () h i j')
-        return qk_dots + bias
+        return bias
 
 # helper classes
 
