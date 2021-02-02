@@ -271,8 +271,8 @@ class FeedbackTransformer(nn.Module):
 
             # enforce max length on memory buffer
 
-            memory_keys = memory_keys[-self.mem_len:]
-            memory_values = memory_values[-self.mem_len:]
+            memory_keys = memory_keys[:, -self.mem_len:]
+            memory_values = memory_values[:, -self.mem_len:]
 
         x = torch.cat((outputs), dim = 1)
         out = self.to_logits(x)
