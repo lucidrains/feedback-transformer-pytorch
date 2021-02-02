@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name = 'feedback-transformer-pytorch',
     packages = find_packages(),
-    version = '0.0.7',
+    version = '0.0.8',
     license='MIT',
     description = 'Implementation of Feedback Transformer in Pytorch',
     author = 'Phil Wang',
