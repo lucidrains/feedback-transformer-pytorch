@@ -209,7 +209,7 @@ class FeedbackTransformer(nn.Module):
         # memory parameters
 
         self.layer_weight = nn.Parameter(torch.ones(depth))
-        self.to_mem_kv = shared_kv_proj
+        self.shared_kv_proj = shared_kv_proj
 
         # final projection to logits
 
@@ -257,7 +257,7 @@ class FeedbackTransformer(nn.Module):
 
             # pre-calculate memory key / values and store to buffer
 
-            mem_k, mem_v = self.to_mem_kv(agg_hiddens).chunk(2, dim = -1)
+            mem_k, mem_v = self.shared_kv_proj(agg_hiddens).chunk(2, dim = -1)
             memory_keys = safe_cat(memory_keys, mem_k, dim = 1)
             memory_values = safe_cat(memory_values, mem_v, dim = 1)
 
