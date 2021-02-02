@@ -2,6 +2,8 @@
 
 Simple implementation of <a href="https://arxiv.org/abs/2002.09402">Feedback Transformer</a> in Pytorch. They improve on Transformer-XL by having each token have access to the representations of all previous layers through time. This is achieved by aggregating the outputs of all layers into a shared memory, which each token can attend to at each time step. The main drawback is longer training time, due to its non-parallel nature.
 
+<a href="https://www.youtube.com/watch?v=zdb8MM94A5c">Yannic Kilcher video</a>
+
 ## Citations
 
 ```bibtex
