@@ -4,6 +4,8 @@ Simple implementation of <a href="https://arxiv.org/abs/2002.09402">Feedback Tra
 
 <a href="https://www.youtube.com/watch?v=zdb8MM94A5c">Yannic Kilcher video</a>
 
+I'll also take the liberty to add some various enhancements, including pre-normalization, GLU gated feedforwards, as well as simplified T5 relative positional embeddings.
+
 ## Citations
 
 ```bibtex
