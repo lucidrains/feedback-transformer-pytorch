@@ -32,9 +32,33 @@ model = FeedbackTransformer(
     ff_dropout = 0.1              # feedforward dropout
 ).cuda()
 
-x = torch.randint(0, 256, (2, 512)).cuda()
-model(x)  # (1, 512, 20000)
+x = torch.randint(0, 20000, (2, 64)).cuda()
+model(x)  # (2, 64, 20000)
 ```
+
+If you would like to have fine control over the memory (when to detach, etc), you can do it with some extra keyword arguments on `.forward`
+
+```python
+import torch
+from feedback_transformer_pytorch import FeedbackTransformer
+
+model = FeedbackTransformer(
+    num_tokens = 20000,
+    dim = 512,
+    depth = 6,
+    seq_len = 32,
+    mem_len = 256
+).cuda()
+
+x1 = torch.randint(0, 20000, (2, 32)).cuda()
+x2 = torch.randint(0, 20000, (2, 32)).cuda()
+x3 = torch.randint(0, 20000, (2, 32)).cuda()
+
+out1, mem1 = model(x1, return_memory = True)
+out2, mem2 = model(x2, memory = mem1, return_memory = True)
+out3, mem3 = model(x3, memory = mem2, return_memory = True)  # (2, 32, 20000)
+```
+
 ## Citations
 
 ```bibtex
