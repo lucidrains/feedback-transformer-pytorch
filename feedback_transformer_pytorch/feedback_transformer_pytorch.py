@@ -1,9 +1,14 @@
 import math
+from collections import namedtuple
+
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
-
 from einops import rearrange
+
+# constants
+
+Memory = namedtuple('Memory', ['keys', 'values'])
 
 # helpers
 
@@ -218,13 +223,16 @@ class FeedbackTransformer(nn.Module):
             nn.Linear(dim, num_tokens)
         )
 
-    def forward(self, x):
+    def forward(self, x, memory = None, return_memory = False):
         b, n, device = *x.shape, x.device
 
         x = self.token_emb(x)
 
         memory_keys = None
         memory_values = None
+
+        if exists(memory):
+            memory_keys, memory_values = memory
 
         outputs = []
 
@@ -267,4 +275,9 @@ class FeedbackTransformer(nn.Module):
             memory_values = memory_values[-self.mem_len:]
 
         x = torch.cat((outputs), dim = 1)
-        return self.to_logits(x)
+        out = self.to_logits(x)
+
+        if not return_memory:
+            return out
+
+        return out, Memory(memory_keys, memory_values)
