@@ -184,7 +184,7 @@ class FeedbackTransformer(nn.Module):
         self.mem_len = mem_len
 
         self.token_emb = nn.Embedding(num_tokens, dim)
-        self.pos_emb = RelativePositionBias(causal = True)
+        self.pos_emb = RelativePositionBias(causal = True, heads = heads)
 
         # memory parameters
 
