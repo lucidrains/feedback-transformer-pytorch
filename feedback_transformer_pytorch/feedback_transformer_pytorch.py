@@ -10,6 +10,9 @@ from einops import rearrange
 def exists(val):
     return val is not None
 
+def default(val, d):
+    return val if exists(val) else d
+
 def safe_cat(arr, el, dim = 1):
     if not exists(arr):
         return el
@@ -186,20 +189,29 @@ class FeedbackTransformer(nn.Module):
         self.token_emb = nn.Embedding(num_tokens, dim)
         self.pos_emb = RelativePositionBias(causal = True, heads = heads)
 
-        # memory parameters
-
-        self.layer_weight = nn.Parameter(torch.ones(depth))
-        self.to_mem_kv = nn.Linear(dim, heads * dim_head * 2, bias = False)
-
         # main layers
 
         self.layers = nn.ModuleList([])
+        shared_kv_proj = None
 
         for _ in range(depth):
+            attn = Attention(dim = dim, heads = heads, dim_head = dim_head, dropout = attn_dropout)
+            ff = FeedForward(dim = dim, dropout = ff_dropout)
+
+            shared_kv_proj = default(shared_kv_proj, attn.to_kv)
+            attn.to_kv = shared_kv_proj
+
             self.layers.append(nn.ModuleList([
-                Residual(PreNorm(dim, Attention(dim = dim, heads = heads, dim_head = dim_head, dropout = attn_dropout))),
-                Residual(PreNorm(dim, FeedForward(dim = dim, dropout = ff_dropout)))
+                Residual(PreNorm(dim, attn)),
+                Residual(PreNorm(dim, ff))
             ]))
+
+        # memory parameters
+
+        self.layer_weight = nn.Parameter(torch.ones(depth))
+        self.to_mem_kv = shared_kv_proj
+
+        # final projection to logits
 
         self.to_logits = nn.Sequential(
             nn.LayerNorm(dim),
