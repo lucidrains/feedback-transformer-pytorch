@@ -91,6 +91,16 @@ class PreNorm(nn.Module):
         x = self.norm(x)
         return self.fn(x, **kwargs)
 
+class SkipIf(nn.Module):
+    def __init__(self, cond, fn):
+        super().__init__()
+        self.cond = cond
+        self.fn = fn
+
+    def forward(self, x, *args, **kwargs):
+        if self.cond(x, *args, **kwargs):
+            return x
+        return self.fn(x, *args, **kwargs)
 # feedforward
 
 class GEGLU(nn.Module):
@@ -139,16 +149,19 @@ class Attention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, memory = None, pos_emb = None):
+    def forward(self, x, memory, pos_emb = None):
         h, n, device = self.heads, x.shape[1], x.device
+
+        self_attend = n > 1 # only self attend if going at greater than 1 token at a time
+
         q = self.to_q(x) * self.scale
 
-        k, v = self.to_kv(x).chunk(2, dim = -1)
+        k, v = memory if exists(memory) else (None, None)
 
-        if exists(memory):
-            mem_k, mem_v = memory
-            k = torch.cat((mem_k, k), dim = 1)
-            v = torch.cat((mem_v, v), dim = 1)
+        if self_attend:
+            self_k, self_v = self.to_kv(x).chunk(2, dim = -1)
+            k = safe_cat(k, self_k, dim = 1)
+            v = safe_cat(v, self_v, dim = 1)
 
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), (q, k, v))
 
@@ -158,7 +171,7 @@ class Attention(nn.Module):
         if exists(pos_emb):
             sim += pos_emb(sim)
 
-        if n > 1:
+        if self_attend:
             causal_mask = torch.ones(i, j, device = device).triu_(j - i + 1).bool()
             causal_mask = rearrange(causal_mask, 'i j -> () () i j')
             mask_value = -torch.finfo(q.dtype).max
@@ -207,9 +220,15 @@ class FeedbackTransformer(nn.Module):
             shared_kv_proj = default(shared_kv_proj, attn.to_kv)
             attn.to_kv = shared_kv_proj
 
+            attn, ff = map(lambda fn: Residual(PreNorm(dim, fn)), (attn, ff))
+
+            if seq_len == 1:
+                memory_is_empty = lambda *args, **kwargs: not exists(kwargs['memory'])
+                attn = SkipIf(memory_is_empty, attn)
+
             self.layers.append(nn.ModuleList([
-                Residual(PreNorm(dim, attn)),
-                Residual(PreNorm(dim, ff))
+                attn,
+                ff
             ]))
 
         # memory parameters
