@@ -59,6 +59,32 @@ out2, mem2 = model(x2, memory = mem1, return_memory = True)
 out3, mem3 = model(x3, memory = mem2, return_memory = True)  # (2, 32, 20000)
 ```
 
+## Cross attention
+
+```python
+import torch
+from feedback_transformer_pytorch import FeedbackTransformer
+
+model = FeedbackTransformer(
+    num_tokens = 20000,
+    dim = 512,
+    depth = 6,
+    seq_len = 1,
+    mem_len = 256,
+    cross_attend = True
+).cuda()
+
+x1 = torch.randint(0, 20000, (2, 32)).cuda()
+x2 = torch.randint(0, 20000, (2, 32)).cuda()
+x3 = torch.randint(0, 20000, (2, 32)).cuda()
+
+encoded = torch.randn(2, 32, 512).cuda()
+
+out1, mem1 = model(x1, context = encoded, return_memory = True)
+out2, mem2 = model(x2, context = encoded, memory = mem1, return_memory = True)
+out3, mem3 = model(x3, context = encoded, memory = mem2, return_memory = True)  # (2, 32, 20000)
+```
+
 ## Citations
 
 ```bibtex

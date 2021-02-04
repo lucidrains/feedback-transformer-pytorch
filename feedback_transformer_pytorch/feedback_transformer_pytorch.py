@@ -23,6 +23,9 @@ def safe_cat(arr, el, dim = 1):
         return el
     return torch.cat((arr, el), dim = dim)
 
+def memory_is_empty(*args, **kwargs):
+    return not exists(kwargs.get('memory', None))
+
 # positional embedding
 
 class RelativePositionBias(nn.Module):
@@ -199,7 +202,8 @@ class FeedbackTransformer(nn.Module):
         dim_head = 64,
         attn_dropout = 0.,
         ff_dropout = 0.,
-        keep_last_hidden = False
+        keep_last_hidden = False,
+        cross_attend = False
     ):
         super().__init__()
         self.seq_len = seq_len
@@ -223,12 +227,17 @@ class FeedbackTransformer(nn.Module):
             attn, ff = map(lambda fn: Residual(PreNorm(dim, fn)), (attn, ff))
 
             if seq_len == 1:
-                memory_is_empty = lambda *args, **kwargs: not exists(kwargs['memory'])
                 attn = SkipIf(memory_is_empty, attn)
+
+            cross_attn = None
+            if cross_attend:
+                cross_attn = Residual(PreNorm(dim, Attention(dim = dim, heads = heads, dim_head = dim_head, dropout = attn_dropout)))
+                cross_attn = SkipIf(memory_is_empty, cross_attn)
 
             self.layers.append(nn.ModuleList([
                 attn,
-                ff
+                ff,
+                cross_attn
             ]))
 
         # memory parameters
@@ -237,6 +246,9 @@ class FeedbackTransformer(nn.Module):
         self.shared_kv_proj = shared_kv_proj
         self.keep_last_hidden = keep_last_hidden
 
+        if cross_attend:
+            self.cross_attn_kv_proj = nn.Linear(dim, heads * dim_head * 2, bias = False)
+
         # final projection to logits
 
         self.to_logits = nn.Sequential(
@@ -244,7 +256,7 @@ class FeedbackTransformer(nn.Module):
             nn.Linear(dim, num_tokens)
         )
 
-    def forward(self, x, memory = None, return_memory = False):
+    def forward(self, x, memory = None, context = None, return_memory = False):
         b, n, device = *x.shape, x.device
 
         x = self.token_emb(x)
@@ -262,6 +274,9 @@ class FeedbackTransformer(nn.Module):
         layer_weight = self.layer_weight.softmax(dim = -1)
         layer_weight = rearrange(self.layer_weight, 'd -> d () () ()')
 
+        if exists(context):
+            context = self.cross_attn_kv_proj(context).chunk(2, dim = -1)
+
         for x in x.split(self.seq_len, dim = 1):
             hiddens = [x]
 
@@ -271,9 +286,13 @@ class FeedbackTransformer(nn.Module):
             if exists(memory_keys):
                 memory = (memory_keys, memory_values)
 
-            for attn, ff in self.layers:
+            for attn, ff, cross_attn in self.layers:
 
                 x = attn(x, memory = memory, pos_emb = self.pos_emb)
+
+                if exists(cross_attn):
+                    x = cross_attn(x, memory = context)
+
                 x = ff(x)
 
                 hiddens.append(x)
