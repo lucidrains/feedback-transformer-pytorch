@@ -152,7 +152,7 @@ class Attention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, memory, pos_emb = None):
+    def forward(self, x, memory, context_mask = None, pos_emb = None):
         h, n, device = self.heads, x.shape[1], x.device
 
         self_attend = n > 1 # only self attend if going at greater than 1 token at a time
@@ -170,14 +170,20 @@ class Attention(nn.Module):
 
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
         i, j = sim.shape[-2:]
+        mask_value = -torch.finfo(q.dtype).max
 
         if exists(pos_emb):
             sim += pos_emb(sim)
 
+        if exists(context_mask):
+            context_mask = rearrange(context_mask, 'b j -> b () () j')
+            pad_len = j - context_mask.shape[-1]
+            context_mask = F.pad(context_mask, (0, pad_len), value = True)
+            sim.masked_fill_(~context_mask, mask_value)
+
         if self_attend:
             causal_mask = torch.ones(i, j, device = device).triu_(j - i + 1).bool()
             causal_mask = rearrange(causal_mask, 'i j -> () () i j')
-            mask_value = -torch.finfo(q.dtype).max
             sim.masked_fill_(causal_mask, mask_value)
 
         attn = sim.softmax(dim = -1)
@@ -256,7 +262,7 @@ class FeedbackTransformer(nn.Module):
             nn.Linear(dim, num_tokens)
         )
 
-    def forward(self, x, memory = None, context = None, return_memory = False):
+    def forward(self, x, memory = None, context = None, context_mask = None, return_memory = False):
         b, n, device = *x.shape, x.device
 
         x = self.token_emb(x)
@@ -291,7 +297,7 @@ class FeedbackTransformer(nn.Module):
                 x = attn(x, memory = memory, pos_emb = self.pos_emb)
 
                 if exists(cross_attn):
-                    x = cross_attn(x, memory = context)
+                    x = cross_attn(x, memory = context, context_mask = context_mask)
 
                 x = ff(x)
 

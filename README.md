@@ -79,10 +79,11 @@ x2 = torch.randint(0, 20000, (2, 32)).cuda()
 x3 = torch.randint(0, 20000, (2, 32)).cuda()
 
 encoded = torch.randn(2, 32, 512).cuda()
+enc_mask = torch.ones(2, 32).bool().cuda()
 
-out1, mem1 = model(x1, context = encoded, return_memory = True)
-out2, mem2 = model(x2, context = encoded, memory = mem1, return_memory = True)
-out3, mem3 = model(x3, context = encoded, memory = mem2, return_memory = True)  # (2, 32, 20000)
+out1, mem1 = model(x1, context = encoded, context_mask = enc_mask, return_memory = True)
+out2, mem2 = model(x2, context = encoded, context_mask = enc_mask, memory = mem1, return_memory = True)
+out3, mem3 = model(x3, context = encoded, context_mask = enc_mask, memory = mem2, return_memory = True)  # (2, 32, 20000)
 ```
 
 ## Citations
