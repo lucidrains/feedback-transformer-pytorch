@@ -170,7 +170,7 @@ class Attention(nn.Module):
         i, j = sim.shape[-2:]
 
         if exists(pos_emb):
-            sim += pos_emb(sim)
+            sim = sim + pos_emb(sim)
 
         if self_attend:
             causal_mask = torch.ones(i, j, device = device).triu_(j - i + 1).bool()
