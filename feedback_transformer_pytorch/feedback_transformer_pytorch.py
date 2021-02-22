@@ -173,7 +173,7 @@ class Attention(nn.Module):
         mask_value = -torch.finfo(q.dtype).max
 
         if exists(pos_emb):
-            sim += pos_emb(sim)
+            sim = sim + pos_emb(sim)
 
         if exists(context_mask):
             context_mask = rearrange(context_mask, 'b j -> b () () j')
