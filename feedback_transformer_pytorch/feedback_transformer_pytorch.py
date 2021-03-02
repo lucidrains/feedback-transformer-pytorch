@@ -261,7 +261,7 @@ class FeedbackTransformer(nn.Module):
         # calculate weighting of layers for storing to memory
 
         layer_weight = self.layer_weight.softmax(dim = -1)
-        layer_weight = rearrange(self.layer_weight, 'd -> d () () ()')
+        layer_weight = rearrange(layer_weight, 'd -> d () () ()')
 
         for x in x.split(self.seq_len, dim = 1):
             hiddens = [x]
